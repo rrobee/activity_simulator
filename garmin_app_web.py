@@ -29,8 +29,8 @@ def get_real_elevations(locations):
     return all_elevations
 
 # --- Web Felület beállítása ---
-st.set_page_config(page_title="Garmin GPX Ultra Pro", page_icon="📊", layout="wide")
-st.title("📊 Garmin GPX Pro - Teljes Analitika")
+st.set_page_config(page_title="Garmin - GeoGo GPX Pro", page_icon="📊", layout="wide")
+st.title("📊 Garmin - GeoGo GPX Pro - Aktivitás Szimulátor")
 
 with st.sidebar:
     st.header("⚙️ Tevékenység")
@@ -49,15 +49,15 @@ with st.sidebar:
     
     st.divider()
     st.header("👤 Felhasználó")
-    weight = st.number_input("Súly (kg)", 10, 200, 94)
-    user_height = st.number_input("Testmagasság (cm)", 100, 250, 180)
+    weight = st.number_input("Súly (kg)", 10, 200, 90)
+    user_height = st.number_input("Testmagasság (cm)", 100, 250, 186)
     age = st.number_input("Életkor", 1, 100, 43)
-    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
+    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 49)
 
 uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
 
 if uploaded_file:
-    if st.button("🚀 Teljes Elemzés Generálása"):
+    if st.button("🚀 Szimuláció"):
         try:
             with st.spinner('Adatok feldolgozása...'):
                 raw_data = uploaded_file.read().decode("utf-8")
@@ -154,3 +154,4 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
