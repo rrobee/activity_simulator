@@ -56,20 +56,33 @@ with st.sidebar:
     age = st.number_input("Életkor", 1, 100, 43)
     rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 49)
 
-uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
+# --- Fájl feltöltés kezelése ---
+st.info("💡 Tipp: Ha mobilon 'Network Error'-t kapsz, használd a '📝 Szöveges beillesztés' fület!")
+tab1, tab2 = st.tabs(["📁 Fájl feltöltése", "📝 Szöveges beillesztés"])
+raw_gpx_data = None
 
-if uploaded_file:
-    if st.button("🚀 Szimuláció indítása"):
+with tab1:
+    uploaded_file = st.file_uploader("GPX fájl kiválasztása", type=['gpx'])
+    if uploaded_file:
+        raw_gpx_data = uploaded_file.read().decode("utf-8")
+
+with tab2:
+    gpx_text = st.text_area("Vagy másold be a GPX tartalmát ide:", height=150)
+    if gpx_text:
+        raw_gpx_data = gpx_text
+
+if raw_gpx_data:
+    if st.button("🚀 Teljes Elemzés Generálása", use_container_width=True):
         try:
-            with st.spinner('Adatok feldolgozása...'):
-                raw_data = uploaded_file.read().decode("utf-8")
-                track_content = re.search(r'<trk>.*</trk>', raw_data, re.DOTALL)
-                track_raw = track_content.group(0) if track_content else raw_data
+            with st.spinner('Adatok feldolgozása és szintek lekérése...'):
+                # Adat kinyerése
+                track_content = re.search(r'<trk>.*</trk>', raw_gpx_data, re.DOTALL)
+                track_raw = track_content.group(0) if track_content else raw_gpx_data
                 lats = re.findall(r'lat="([-+]?\d*\.\d+|\d+)"', track_raw)
                 lons = re.findall(r'lon="([-+]?\d*\.\d+|\d+)"', track_raw)
                 
                 if not lats:
-                    st.error("Nincs útvonal!")
+                    st.error("Nem találtam koordinátákat a fájlban!")
                     st.stop()
 
                 step = 1 if len(lats) < 600 else len(lats) // 500
@@ -173,6 +186,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
