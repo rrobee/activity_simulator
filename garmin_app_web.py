@@ -57,21 +57,15 @@ with st.sidebar:
     age = st.number_input("Életkor", 1, 100, 43)
     rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 49)
 
-uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
+uploaded_file = st.file_uploader("Válaszd ki a GPX fájlt", type=['gpx'], label_visibility="visible")
 
-if uploaded_file:
-    if st.button("🚀 Szimuláció indítása"):
-        try:
-            with st.spinner('Adatok feldolgozása...'):
-                raw_data = uploaded_file.read().decode("utf-8")
-                track_content = re.search(r'<trk>.*</trk>', raw_data, re.DOTALL)
-                track_raw = track_content.group(0) if track_content else raw_data
-                lats = re.findall(r'lat="([-+]?\d*\.\d+|\d+)"', track_raw)
-                lons = re.findall(r'lon="([-+]?\d*\.\d+|\d+)"', track_raw)
-                
-                if not lats:
-                    st.error("Nincs útvonal!")
-                    st.stop()
+raw_gpx_data = None
+if uploaded_file is not None:
+    try:
+        # Azonnali beolvasás pufferelés nélkül
+        raw_gpx_data = uploaded_file.getvalue().decode("utf-8")
+    except Exception as e:
+        st.error(f"Hiba a fájl beolvasásakor: {e}")
 
                 step = 1 if len(lats) < 600 else len(lats) // 500
                 lats_f, lons_f = lats[::step], lons[::step]
@@ -174,6 +168,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
