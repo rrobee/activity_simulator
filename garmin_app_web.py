@@ -41,7 +41,7 @@ with st.sidebar:
     st.divider()
     st.header("🕒 Idő és Tempó")
     start_date = st.date_input("Indulási nap", value=datetime.now().date(), key="date_picker")
-    start_time = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker")
+    start_time = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker", step=1)
     speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
@@ -149,9 +149,9 @@ if uploaded_file:
                 st.subheader("👟 Cadence profil")
                 st.line_chart(pd.DataFrame({"Cadence": cad_list}), color="#4B9BFF")
 
-            # Fájlnév generálása az indulási időpontból (pl. garmin_20240520_0830.gpx)
-            timestamp_str = start_dt.strftime("%Y%m%d_%H%M")
-            file_name_with_time = f"garmin_{timestamp_str}.gpx"
+            # Időbélyeg másodperccel (évhónapnap_órapercmásodperc)
+            timestamp_str = start_dt.strftime("%Y%m%d_%H%M%S")
+            file_name_final = f"garmin_{act_slug}_{timestamp_str}.gpx"
 
             buffer = io.BytesIO()
             ET.ElementTree(root).write(buffer, encoding='utf-8', xml_declaration=True)
@@ -159,12 +159,13 @@ if uploaded_file:
             st.download_button(
                 label="📥 GPX Letöltése",
                 data=buffer.getvalue(),
-                file_name=file_name_with_time, # Itt használjuk az új nevet
+                file_name=file_name_final,
                 mime="application/gpx+xml",
                 use_container_width=True
             )
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
