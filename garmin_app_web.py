@@ -149,10 +149,22 @@ if uploaded_file:
                 st.subheader("👟 Cadence profil")
                 st.line_chart(pd.DataFrame({"Cadence": cad_list}), color="#4B9BFF")
 
+            # Fájlnév generálása az indulási időpontból (pl. garmin_20240520_0830.gpx)
+            timestamp_str = start_dt.strftime("%Y%m%d_%H%M")
+            file_name_with_time = f"garmin_{timestamp_str}.gpx"
+
             buffer = io.BytesIO()
             ET.ElementTree(root).write(buffer, encoding='utf-8', xml_declaration=True)
-            st.download_button("📥 GPX Letöltése", buffer.getvalue(), "garmin_fixed.gpx", "application/gpx+xml", use_container_width=True)
+            
+            st.download_button(
+                label="📥 GPX Letöltése",
+                data=buffer.getvalue(),
+                file_name=file_name_with_time, # Itt használjuk az új nevet
+                mime="application/gpx+xml",
+                use_container_width=True
+            )
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
