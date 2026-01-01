@@ -5,7 +5,6 @@ import random
 import math
 import io
 import pandas as pd
-import re
 
 # --- Matematikai alapfüggvények ---
 def haversine(lat1, lon1, lat2, lon2):
@@ -16,7 +15,7 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-# --- Web Felület ---
+# --- Web Felület Beállítások ---
 st.set_page_config(page_title="Garmin GPX Pro", page_icon="🏃", layout="wide")
 st.title("🏃 Garmin & GeoGo Pro Konverter")
 
@@ -38,132 +37,118 @@ with st.sidebar:
     start_time = st.time_input("Indulási idő", key='start_time')
     
     st.divider()
-    st.header("👤 Felhasználói adatok")
-    age = st.number_input("Életkor", 1, 100, 43)
+    st.header("🏔️ Domborzat")
+    # Mivel a fájljaidban nincs magasság, ez alapból be van kapcsolva
+    generate_ele = st.checkbox("Mesterséges domborzat generálása", value=True)
+    avg_ele = st.number_input("Alap magasság (m)", 100, 1000, 220)
+    
+    st.divider()
+    st.header("👤 Felhasználó")
     weight = st.number_input("Súly (kg)", 10.0, 200.0, 94.0)
+    age = st.number_input("Életkor", 1, 100, 43)
     rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
     device_name = st.text_input("Óra típusa", "Garmin Fenix 7X")
 
-uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
+uploaded_file = st.file_uploader("Töltsd fel a GPX fájlt", type=['gpx'])
 
 if uploaded_file:
-    if st.button("🚀 Generálás és Elemzés"):
+    if st.button("🚀 Konvertálás Indítása"):
         try:
             start_dt = datetime.combine(st.session_state.start_date, st.session_state.start_time)
-            raw_content = uploaded_file.read().decode("utf-8")
             
-            # --- ADATKINYERÉS (REGEX - BIZTOS MÓDSZER) ---
-            lats = re.findall(r'lat="([-+]?\d*\.\d+|\d+)"', raw_content)
-            lons = re.findall(r'lon="([-+]?\d*\.\d+|\d+)"', raw_content)
-            eles = re.findall(r'<ele>([-+]?\d*\.\d+|\d+)</ele>', raw_content)
-
-            if not lats or not lons:
-                st.error("Nem találtam koordinátákat a fájlban!")
+            # XML beolvasás
+            tree = ET.parse(uploaded_file)
+            root = tree.getroot()
+            # Névtér kezelése (wildcard módszer a biztonságért)
+            points = root.findall('.//{*}trkpt')
+            
+            if not points:
+                st.error("Nem találhatók útvonalpontok a fájlban!")
                 st.stop()
 
-            # Ha nincs magasság, 220m alapérték
-            if not eles:
-                eles = ["220.0"] * len(lats)
-            elif len(eles) < len(lats):
-                eles += [eles[-1]] * (len(lats) - len(eles))
-
-            # --- PARAMÉTEREK ---
-            level_code = {"Kezdő": "K", "Középhaladó": "KH", "Haladó": "H"}[level]
-            speeds = {"Túrázás": {"K": 0.95, "KH": 1.15, "H": 1.40}, 
-                      "Futás": {"K": 2.2, "KH": 2.7, "H": 3.4}, 
-                      "Kerékpár": {"K": 4.5, "KH": 6.0, "H": 8.0}}
-            target_speed = speeds[activity_type][level_code]
+            # Új GPX alapjai
+            gpx_ns = "http://www.topografix.com/GPX/1/1"
+            tpe_ns = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+            ET.register_namespace('', gpx_ns)
+            ET.register_namespace('gpxtpx', tpe_ns)
             
-            max_hr = 220 - age
-            hr_reserve = max_hr - rest_hr
-            hr_intensity = {"K": 0.50, "KH": 0.60, "H": 0.70}[level_code]
-            cad_base = {"Túrázás": 52, "Futás": 165, "Kerékpár": 85}[activity_type]
+            new_root = ET.Element(f"{{{gpx_ns}}}gpx", {'version': '1.1', 'creator': device_name})
+            trk = ET.SubElement(new_root, f"{{{gpx_ns}}}trk")
+            trkseg = ET.SubElement(trk, f"{{{gpx_ns}}}trkseg")
 
-            # --- GPX ÉPÍTÉS ---
-            GPX_NS = "http://www.topografix.com/GPX/1/1"
-            TPE_NS = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
-            ET.register_namespace('', GPX_NS)
-            ET.register_namespace('gpxtpx', TPE_NS)
+            # Számítási alapok
+            speeds = {"Túrázás": 1.1, "Futás": 2.7, "Kerékpár": 5.5}
+            target_speed = speeds[activity_type]
             
-            new_root = ET.Element(f"{{{GPX_NS}}}gpx", {'version': '1.1', 'creator': device_name})
-            trk = ET.SubElement(new_root, f"{{{GPX_NS}}}trk")
-            trkseg = ET.SubElement(trk, f"{{{GPX_NS}}}trkseg")
-
             elevations = []
             heart_rates = []
-            coords_map = []
+            coords_list = []
             current_time = start_dt
             total_dist = 0
             total_ascent = 0
+            fake_ele = float(avg_ele)
 
-            for i in range(len(lats)):
-                lat, lon, ele = float(lats[i]), float(lons[i]), float(eles[i])
+            for i, pt in enumerate(points):
+                lat, lon = float(pt.get('lat')), float(pt.get('lon'))
+                
+                # Magasság: vagy a fájlból, vagy generálva
+                ele_node = pt.find('{*}ele')
+                if ele_node is not None and not generate_ele:
+                    ele = float(ele_node.text)
+                else:
+                    # Természetes hatású hullámzás
+                    fake_ele += random.uniform(-1.2, 1.3)
+                    ele = fake_ele
+                
                 elevations.append(ele)
-                coords_map.append({'lat': lat, 'lon': lon})
+                coords_list.append({'lat': lat, 'lon': lon})
                 
-                d = 0
                 if i > 0:
-                    prev_lat, prev_lon, prev_ele = float(lats[i-1]), float(lons[i-1]), float(eles[i-1])
-                    d = haversine(prev_lat, prev_lon, lat, lon)
+                    d = haversine(coords_list[i-1]['lat'], coords_list[i-1]['lon'], lat, lon)
                     total_dist += d
-                    if ele > prev_ele: total_ascent += (ele - prev_ele)
+                    if ele > elevations[i-1]:
+                        total_ascent += (ele - elevations[i-1])
                     
-                    # Időhaladás lejtő/emelkedő módosítóval
-                    inc = (ele - prev_ele) / d if d > 0 else 0
-                    s_mod = math.exp(-3.5 * abs(inc + 0.05))
-                    current_time += timedelta(seconds=d / max(0.1, target_speed * s_mod))
+                    # Időhaladás (lejtőn gyorsabb, emelkedőn lassabb)
+                    slope = (ele - elevations[i-1]) / d if d > 0 else 0
+                    speed_mod = math.exp(-3.0 * abs(slope + 0.05))
+                    current_time += timedelta(seconds=d / max(0.2, target_speed * speed_mod))
 
-                # XML Pont
-                pt = ET.SubElement(trkseg, f"{{{GPX_NS}}}trkpt", {'lat': str(lat), 'lon': str(lon)})
-                ET.SubElement(pt, f"{{{GPX_NS}}}ele").text = f"{ele:.2f}"
-                ET.SubElement(pt, f"{{{GPX_NS}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                # Új pont létrehozása
+                new_pt = ET.SubElement(trkseg, f"{{{gpx_ns}}}trkpt", {'lat': str(lat), 'lon': str(lon)})
+                ET.SubElement(new_pt, f"{{{gpx_ns}}}ele").text = f"{ele:.2f}"
+                ET.SubElement(new_pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
-                # Garmin Extensions (Pulzus + Kadencia)
-                ext = ET.SubElement(pt, f"{{{GPX_NS}}}extensions")
-                tpe = ET.SubElement(ext, f"{{{TPE_NS}}}TrackPointExtension")
+                # Garmin pulzus kiterjesztés
+                ext = ET.SubElement(new_pt, f"{{{gpx_ns}}}extensions")
+                tpe = ET.SubElement(ext, f"{{{tpe_ns}}}TrackPointExtension")
                 
-                # Pulzus dinamika
-                hr_mod = (ele - float(eles[i-1])) * 12 if i > 0 else 0
-                curr_hr = int(rest_hr + (hr_reserve * hr_intensity) + hr_mod + random.randint(-2, 2))
-                final_hr = max(rest_hr+10, min(curr_hr, max_hr-5))
-                heart_rates.append(final_hr)
-                ET.SubElement(tpe, f"{{{TPE_NS}}}hr").text = str(final_hr)
-                
-                cad_val = 0 if (activity_type == "Kerékpár" and d == 0 and i > 0) else (cad_base + random.randint(-4, 4))
-                ET.SubElement(tpe, f"{{{TPE_NS}}}cad").text = str(max(0, cad_val))
+                # Pulzus logika: terhelés + emelkedő + véletlen
+                hr_val = int(rest_hr + 55 + (ele - elevations[0]) * 0.4 + random.randint(-2, 3))
+                ET.SubElement(tpe, f"{{{tpe_ns}}}hr").text = str(max(rest_hr+10, min(hr_val, 185)))
 
-            # Körpálya zárás
-            if path_type == "Kör":
-                d_end = haversine(float(lats[-1]), float(lons[-1]), float(lats[0]), float(lons[0]))
-                current_time += timedelta(seconds=d_end / target_speed)
-                end_pt = ET.SubElement(trkseg, f"{{{GPX_NS}}}trkpt", {'lat': str(lats[0]), 'lon': str(lons[0])})
-                ET.SubElement(end_pt, f"{{{GPX_NS}}}ele").text = f"{float(eles[0]):.2f}"
-                ET.SubElement(end_pt, f"{{{GPX_NS}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-            # --- MEGJELENÍTÉS ---
-            duration = current_time - start_dt
-            st.success("✅ Feldolgozás kész!")
+            # Statisztikai adatok megjelenítése
+            st.success(f"✅ Kész! Távolság: {total_dist/1000:.2f} km")
             
-            st.subheader("📊 Összegzés")
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Távolság", f"{total_dist/1000:.2f} km")
-            m2.metric("Időtartam", f"{str(duration).split('.')[0]}")
-            m3.metric("Szintemelkedés", f"{total_ascent:.0f} m")
-            m4.metric("Kalória", f"{int(7.5 * weight * (duration.total_seconds()/3600))} kcal")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Távolság", f"{total_dist/1000:.2f} km")
+            c2.metric("Szintemelkedés", f"{total_ascent:.0f} m")
+            c3.metric("Időtartam", f"{str(current_time - start_dt).split('.')[0]}")
+            c4.metric("Kalória (becsült)", f"{int((weight * 0.75) * (total_dist/1000))} kcal")
 
-            col_l, col_r = st.columns(2)
-            with col_l:
-                st.subheader("⛰️ Magassági profil")
-                st.area_chart(elevations)
-            with col_r:
-                st.subheader("🗺️ Útvonal")
-                st.map(pd.DataFrame(coords_map))
+            st.subheader("⛰️ Magassági profil")
+            st.area_chart(elevations)
+            
+            st.subheader("🗺️ Útvonal")
+            st.map(pd.DataFrame(coords_list))
 
-            # Letöltés
+            # Mentés és letöltés
             buffer = io.BytesIO()
             tree = ET.ElementTree(new_root)
+            ET.indent(tree, space="  ")
             tree.write(buffer, encoding='utf-8', xml_declaration=True)
-            st.download_button("📥 Kész GPX Letöltése", buffer.getvalue(), f"garmin_{activity_type}.gpx", "application/gpx+xml", use_container_width=True)
+            
+            st.download_button("📥 Konvertált GPX Letöltése", buffer.getvalue(), f"garmin_{activity_type}.gpx", "application/gpx+xml", use_container_width=True)
 
         except Exception as e:
-            st.error(f"Hiba: {e}")
+            st.error(f"Hiba történt: {e}")
