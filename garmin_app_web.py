@@ -32,6 +32,12 @@ def get_real_elevations(locations):
 st.set_page_config(page_title="Garmin GPX Ultra Pro", page_icon="📊", layout="wide")
 st.title("📊 Garmin GPX Pro - Teljes Analitika & Cadence")
 
+# --- Session State az idő fixálásához ---
+if 'start_date_val' not in st.session_state:
+    st.session_state.start_date_val = datetime.now().date()
+if 'start_time_val' not in st.session_state:
+    st.session_state.start_time_val = datetime.now().time()
+
 with st.sidebar:
     st.header("⚙️ Tevékenység")
     activity_type = st.selectbox("Tevékenység", ["Túrázás", "Futás", "Kerékpár"])
@@ -39,15 +45,19 @@ with st.sidebar:
     
     st.divider()
     st.header("🕒 Idő és Tempó")
-    start_date = st.date_input("Indulási nap", value=datetime.now().date())
-    start_time = st.time_input("Indulási idő", value=datetime.now().time())
+    # Fixált időbevitel
+    start_date = st.date_input("Indulási nap", value=st.session_state.start_date_val)
+    start_time = st.time_input("Indulási idő", value=st.session_state.start_time_val)
+    st.session_state.start_date_val = start_date
+    st.session_state.start_time_val = start_time
+    
     speed_boost = st.slider("Tempó gyorsítása", 0.8, 2.0, 1.2)
     
     st.divider()
     st.header("👤 Felhasználó")
     weight = st.number_input("Súly (kg)", 10, 200, 94)
-    user_height = st.number_input("Testmagasság (cm)", 100, 250, 180) # ÚJ: Testmagasság
-    age = st.number_input("Életkor", 1, 100, 43) # VISSZATÉVE: Életkor
+    user_height = st.number_input("Testmagasság (cm)", 100, 250, 180)
+    age = st.number_input("Életkor", 1, 100, 43)
     rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
 
 uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
@@ -103,26 +113,24 @@ if uploaded_file:
                 ET.SubElement(pt, f"{{{gpx_ns}}}ele").text = f"{ele:.1f}"
                 ET.SubElement(pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
-                # PULZUS & CADENCE (Testmagasság és kor figyelembevételével)
                 hr_offset = 75 if activity_type == "Kerékpár" else 65
                 hr = int(rest_hr + hr_offset + (ele - real_eles[0]) * 0.45 - (age * 0.1) + random.randint(-3, 4))
                 final_hr = max(rest_hr+20, min(hr, 220-age))
                 hr_list.append(final_hr)
                 
-                # Cadence kalkuláció: kerékpárnál rpm, futásnál spm
                 if activity_type == "Kerékpár":
                     cad = int(75 + (target_speed * 2) - (user_height * 0.05) + random.randint(-5, 5))
-                else: # Futás/Túra
+                else:
                     cad = int(140 + (target_speed * 10) - (user_height * 0.1) + random.randint(-3, 3))
                 cad_list.append(cad)
                 
                 ext = ET.SubElement(pt, f"{{{gpx_ns}}}extensions")
                 tpe = ET.SubElement(ext, f"{{{tpe_ns}}}TrackPointExtension")
                 ET.SubElement(tpe, f"{{{tpe_ns}}}hr").text = str(final_hr)
-                ET.SubElement(tpe, f"{{{tpe_ns}}}cad").text = str(cad) # ÚJ: Cadence bekerült!
+                ET.SubElement(tpe, f"{{{tpe_ns}}}cad").text = str(cad)
 
             # --- Kijelzés ---
-            st.success("✅ Adatok betöltve!")
+            st.success("✅ Feldolgozás kész!")
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Távolság", f"{total_dist/1000:.2f} km")
             c2.metric("Szint", f"{total_asc:.0f} m")
@@ -143,7 +151,7 @@ if uploaded_file:
 
             buffer = io.BytesIO()
             ET.ElementTree(root).write(buffer, encoding='utf-8', xml_declaration=True)
-            st.download_button("📥 GPX Letöltése", buffer.getvalue(), "garmin_final_pro.gpx", "application/gpx+xml", use_container_width=True)
+            st.download_button("📥 GPX Letöltése", buffer.getvalue(), "garmin_final_v3.gpx", "application/gpx+xml", use_container_width=True)
 
         except Exception as e:
             st.error(f"Hiba: {e}")
