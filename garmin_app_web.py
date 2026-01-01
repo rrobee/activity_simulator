@@ -38,7 +38,7 @@ def get_real_elevations(locations):
 
 # --- Web Felület ---
 st.set_page_config(page_title="Garmin GPX Pro vFinal", page_icon="🏃", layout="wide")
-st.title("🏃 Garmin & GeoGo Pro - Teljes Verzió")
+st.title("🏃 Garmin & GeoGo Pro - Aktivitás szimulátor")
 
 with st.sidebar:
     st.header("⚙️ Tevékenység")
@@ -50,19 +50,19 @@ with st.sidebar:
     st.header("🕒 Idő és Tempó")
     start_date = st.date_input("Indulási nap", value=datetime.now().date())
     start_time = st.time_input("Indulási idő", value=datetime.now().time())
-    speed_boost = st.slider("Tempó gyorsítása (1.0 = alap)", 0.8, 2.0, 1.3)
+    speed_boost = st.slider("Tempó gyorsítása (1.0 = alap)", 0.8, 2.0, 1.0)
     
     st.divider()
     st.header("👤 Felhasználó & Eszköz")
-    weight = st.number_input("Súly (kg)", 10, 200, 94)
+    weight = st.number_input("Súly (kg)", 10, 200, 80)
     age = st.number_input("Életkor", 1, 100, 43)
-    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
-    device_name = st.text_input("Óra típusa", "Garmin Fenix 7X")
+    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 50)
+    device_name = st.text_input("Óra típusa", "Garmin Fenix 7X Pro Solar")
 
 uploaded_file = st.file_uploader("Töltsd fel a GPX fájlt", type=['gpx'])
 
 if uploaded_file:
-    if st.button("🚀 Profi Feldolgozás Indítása"):
+    if st.button("🚀 Feldolgozás Indítása"):
         try:
             with st.spinner('Magasságok lekérése és útvonal rajzolása...'):
                 raw_data = uploaded_file.read().decode("utf-8")
@@ -157,3 +157,4 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
