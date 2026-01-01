@@ -22,11 +22,11 @@ def add_gps_noise(coord):
 st.set_page_config(page_title="Garmin GPX Pro", page_icon="📈", layout="wide")
 st.title("🏃 Garmin & GeoGo Pro Konverter")
 
-# Session State az idő megőrzéséhez
+# SESSION STATE FIX: Ez akadályozza meg az idő visszaállását
 if 'start_date' not in st.session_state:
-    st.session_state.start_date = datetime.now().date()
+    st.session_state['start_date'] = datetime.now().date()
 if 'start_time' not in st.session_state:
-    st.session_state.start_time = datetime.now().time()
+    st.session_state['start_time'] = datetime.now().time()
 
 with st.sidebar:
     st.header("⚙️ Beállítások")
@@ -36,7 +36,7 @@ with st.sidebar:
     
     st.divider()
     st.header("🕒 Időpont beállítása")
-    # A kulcsok (key) biztosítják, hogy ne ugorjon vissza az idő
+    # Csak a key-t használjuk, hogy a Streamlit a belső memóriájából dolgozzon
     start_date = st.date_input("Indulási nap", key='start_date')
     start_time = st.time_input("Indulási idő", key='start_time')
     
@@ -53,8 +53,9 @@ uploaded_file = st.file_uploader("Töltsd fel a forrás GPX fájlt", type=['gpx'
 if uploaded_file:
     if st.button("🚀 Generálás és Elemzés"):
         try:
-            # Paraméterek inicializálása
-            start_dt = datetime.combine(start_date, start_time)
+            # Paraméterek inicializálása a beállított időponttal
+            start_dt = datetime.combine(st.session_state.start_date, st.session_state.start_time)
+            
             garmin_type = {"Túrázás": "hiking", "Futás": "running", "Kerékpár": "cycling"}[activity_type]
             level_code = {"Kezdő": "K", "Középhaladó": "KH", "Haladó": "H"}[level]
             
@@ -81,7 +82,6 @@ if uploaded_file:
                 f'{{{XSI_NS}}}schemaLocation': f"{GPX_NS} http://www.topografix.com/GPX/1/1/gpx.xsd {TPE_NS} http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd"
             })
 
-            # Adatgyűjtés elemzéshez
             elevations = []
             heart_rates = []
             coords_list = []
@@ -134,7 +134,6 @@ if uploaded_file:
                 ET.SubElement(tpe, f"{{{TPE_NS}}}cad").text = str(max(0, cad_val))
                 last_lat, last_lon, last_ele = lat, lon, ele
 
-            # Körpálya lezárása
             if path_type == "Kör":
                 first_coords = (float(source_points[0].get('lat')), float(source_points[0].get('lon')))
                 first_ele = float(source_points[0].find('default:ele', ns_map).text) if source_points[0].find('default:ele', ns_map) is not None else 220.0
@@ -155,7 +154,6 @@ if uploaded_file:
             m3.metric("Szintemelkedés", f"{total_ascent:.0f} m")
             m4.metric("Átlag pulzus", f"{sum(heart_rates)/len(heart_rates):.0f} bpm")
 
-            # Grafikonok és Térkép
             col_left, col_right = st.columns(2)
             with col_left:
                 st.subheader("⛰️ Magassági profil")
@@ -165,7 +163,6 @@ if uploaded_file:
                 df_map = pd.DataFrame(coords_list)
                 st.map(df_map)
 
-            # Letöltés gomb
             buffer = io.BytesIO()
             ET.indent(new_root, space="  ", level=0)
             tree = ET.ElementTree(new_root)
