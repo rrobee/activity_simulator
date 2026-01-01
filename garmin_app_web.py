@@ -38,7 +38,7 @@ with st.sidebar:
     level = st.selectbox("Szint (Erőnlét)", ["Kezdő", "Középhaladó", "Haladó"], index=1)
     path_type = st.radio("Pálya típusa", ["Szakasz", "Körpálya"])
     
-st.divider()
+    st.divider()
     st.header("🕒 Idő és Tempó")
     start_date = st.date_input("Indulási nap", value=datetime.now().date(), key="date_picker")
     # Itt a módosítás: két oszlopra bontjuk az órát/percet és a másodpercet
@@ -173,6 +173,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
