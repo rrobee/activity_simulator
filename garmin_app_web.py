@@ -50,7 +50,7 @@ with st.sidebar:
     st.header("👤 Felhasználó & Eszköz")
     weight = st.number_input("Súly (kg)", 10.0, 200.0, 94.0)
     age = st.number_input("Életkor", 1, 100, 43)
-    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
+    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 49)
     device_name = st.text_input("Óra típusa", "Garmin Fenix 7X")
 
 uploaded_file = st.file_uploader("Töltsd fel a GPX fájlt", type=['gpx'])
@@ -162,3 +162,4 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba történt: {e}")
+
