@@ -45,7 +45,7 @@ with st.sidebar:
     start_date = st.date_input("Indulási nap", value=datetime.now().date(), key="date_picker")
     start_time = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker")
     
-    speed_boost = st.slider("Tempó gyorsítása", 0.8, 2.0, 1.2)
+    speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
     st.header("👤 Felhasználó")
@@ -154,4 +154,5 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
