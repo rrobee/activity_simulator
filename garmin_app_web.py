@@ -5,7 +5,7 @@ import random
 import math
 import io
 
-# --- Logikai rész (Változatlan a föprogramból) ---
+# --- Logikai rész ---
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371000 
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -42,12 +42,10 @@ uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
 if uploaded_file:
     if st.button("🚀 Mehet!"):
         try:
-            # Idő és típusok beállítása
             start_dt = datetime.combine(start_date, start_time)
             garmin_type = {"Túrázás": "hiking", "Futás": "running", "Kerékpár": "cycling"}[activity_type]
             level_code = {"Kezdő": "K", "Középhaladó": "KH", "Haladó": "H"}[level]
             
-            # Sebesség és pulzus kalkuláció alapjai
             speeds = {"Túrázás": {"K": 0.95, "KH": 1.15, "H": 1.40}, 
                       "Futás": {"K": 2.2, "KH": 2.7, "H": 3.4}, 
                       "Kerékpár": {"K": 4.5, "KH": 6.0, "H": 8.0}}
@@ -57,17 +55,14 @@ if uploaded_file:
             hr_intensity = {"K": 0.50, "KH": 0.60, "H": 0.70}[level_code]
             cad_base = {"Túrázás": 52, "Futás": 165, "Kerékpár": 85}[activity_type]
 
-            # XML betöltés és névterek (GeoGo kompatibilitás!)
             source_tree = ET.parse(uploaded_file)
             source_root = source_tree.getroot()
             GPX_NS = "http://www.topografix.com/GPX/1/1"
             TPE_NS = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
             XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
             
-            # Ez a rész felel azért, hogy ne ns0, hanem ns3 legyen a fájlban
+            # FIGYELEM: Itt a javítás! Nem regisztrálunk kézzel ns-t.
             ET.register_namespace('', GPX_NS)
-            ET.register_namespace('ns3', TPE_NS)
-            ET.register_namespace('xsi', XSI_NS)
 
             new_root = ET.Element(f"{{{GPX_NS}}}gpx", {
                 'creator': device_name,
@@ -75,7 +70,6 @@ if uploaded_file:
                 f'{{{XSI_NS}}}schemaLocation': f"{GPX_NS} http://www.topografix.com/GPX/1/1/gpx.xsd {TPE_NS} http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd"
             })
 
-            # Metadata és Track felépítése (ugyanaz a logika)
             metadata = ET.SubElement(new_root, f"{{{GPX_NS}}}metadata")
             link = ET.SubElement(metadata, f"{{{GPX_NS}}}link", {'href': 'connect.garmin.com'})
             ET.SubElement(link, f"{{{GPX_NS}}}text").text = "Garmin Connect"
@@ -136,7 +130,6 @@ if uploaded_file:
                 ET.SubElement(end_pt, f"{{{GPX_NS}}}ele").text = f"{first_ele:.2f}"
                 ET.SubElement(end_pt, f"{{{GPX_NS}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            # Letöltés felajánlása
             buffer = io.BytesIO()
             ET.indent(new_root, space="  ", level=0)
             tree = ET.ElementTree(new_root)
