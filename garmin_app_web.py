@@ -28,11 +28,11 @@ def get_real_elevations(locations):
         except: return None
     return all_elevations
 
-# --- Web Felület ---
+# --- Web Felület beállítása ---
 st.set_page_config(page_title="Garmin GPX Ultra Pro", page_icon="📊", layout="wide")
-st.title("📊 Garmin GPX Pro - Fixált Idő & Minden Opció")
+st.title("📊 Garmin GPX Pro - Teljes Analitika")
 
-# --- Session State inicializálás az idő fixálásához ---
+# --- Session State az idő fixálásához ---
 if 'st_date' not in st.session_state:
     st.session_state.st_date = datetime.now().date()
 if 'st_time' not in st.session_state:
@@ -42,14 +42,12 @@ with st.sidebar:
     st.header("⚙️ Tevékenység")
     activity_type = st.selectbox("Tevékenység", ["Túrázás", "Futás", "Kerékpár"])
     level = st.selectbox("Szint (Erőnlét)", ["Kezdő", "Középhaladó", "Haladó"], index=1)
-    path_type = st.radio("Pálya típusa", ["Szakasz", "Körpálya"]) # VISSZATÉVE: Szakasz/Kör
+    path_type = st.radio("Pálya típusa", ["Szakasz", "Körpálya"])
     
     st.divider()
     st.header("🕒 Idő és Tempó")
-    # Az értékek közvetlenül a session_state-be íródnak
     st.session_state.st_date = st.date_input("Indulási nap", st.session_state.st_date)
     st.session_state.st_time = st.time_input("Indulási idő", st.session_state.st_time)
-    
     speed_boost = st.slider("Tempó gyorsítása", 0.8, 2.0, 1.2)
     
     st.divider()
@@ -81,7 +79,7 @@ if uploaded_file:
                 real_eles = get_real_elevations(locs)
                 if not real_eles: real_eles = [220.0] * len(lats_f)
 
-            # --- Számítás ---
+            # --- Számítási Logika ---
             start_dt = datetime.combine(st.session_state.st_date, st.session_state.st_time)
             base_s = {"Túrázás": 1.45, "Futás": 3.3, "Kerékpár": 7.5}[activity_type]
             target_speed = base_s * ({"Kezdő": 0.8, "Középhaladó": 1.0, "Haladó": 1.3}[level]) * speed_boost
@@ -112,11 +110,13 @@ if uploaded_file:
                 ET.SubElement(pt, f"{{{gpx_ns}}}ele").text = f"{ele:.1f}"
                 ET.SubElement(pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
+                # Dinamikus pulzus számítás
                 hr_offset = 75 if activity_type == "Kerékpár" else 65
                 hr = int(rest_hr + hr_offset + (ele - real_eles[0]) * 0.45 - (age * 0.1) + random.randint(-3, 4))
                 final_hr = max(rest_hr+20, min(hr, 220-age))
                 hr_list.append(final_hr)
                 
+                # Cadence számítás
                 if activity_type == "Kerékpár":
                     cad = int(75 + (target_speed * 2) - (user_height * 0.05) + random.randint(-5, 5))
                 else:
@@ -128,18 +128,18 @@ if uploaded_file:
                 ET.SubElement(tpe, f"{{{tpe_ns}}}hr").text = str(final_hr)
                 ET.SubElement(tpe, f"{{{tpe_ns}}}cad").text = str(cad)
 
-            # Körpálya korrekció
             if path_type == "Körpálya":
                 d_back = haversine(float(lats_f[-1]), float(lons_f[-1]), float(lats_f[0]), float(lons_f[0]))
                 if d_back > 50: current_time += timedelta(seconds=d_back / target_speed)
 
-            # --- Kijelzés ---
-            st.success("✅ Adatok feldolgozva!")
-            c1, c2, c3, c4 = st.columns(4)
+            # --- Eredmények Kijelzése ---
+            st.success("✅ Feldolgozás kész!")
+            c1, c2, c3, c4, c5 = st.columns(5) # 5 oszlop lett
             c1.metric("Távolság", f"{total_dist/1000:.2f} km")
             c2.metric("Szint", f"{total_asc:.0f} m")
             c3.metric("Időtartam", f"{str(current_time - start_dt).split('.')[0]}")
-            c4.metric("Átlag Cadence", f"{int(sum(cad_list)/len(cad_list))}")
+            c4.metric("Átlag pulzus", f"{int(sum(hr_list)/len(hr_list))} bpm") # VISSZATÉVE
+            c5.metric("Átlag Cadence", f"{int(sum(cad_list)/len(cad_list))}")
 
             col_a, col_b = st.columns(2)
             with col_a:
