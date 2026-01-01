@@ -30,7 +30,7 @@ def get_real_elevations(locations):
 
 # --- Web Felület ---
 st.set_page_config(page_title="Garmin GPX Ultra Pro", page_icon="📊", layout="wide")
-st.title("📊 Garmin GPX Pro - Finomhangolt Verzió")
+st.title("📊 Garmin - GeoGo - Aktivitás Szimulátor GPX Pro")
 
 with st.sidebar:
     st.header("⚙️ Tevékenység")
@@ -42,19 +42,19 @@ with st.sidebar:
     st.header("🕒 Idő és Tempó")
     start_date = st.date_input("Indulási nap", value=datetime.now().date(), key="date_picker")
     start_time = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker")
-    speed_boost = st.slider("Tempó gyorsítása", 0.8, 2.0, 1.2)
+    speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
     st.header("👤 Felhasználó")
-    weight = st.number_input("Súly (kg)", 10, 200, 94)
-    user_height = st.number_input("Testmagasság (cm)", 100, 250, 180)
+    weight = st.number_input("Súly (kg)", 10, 200, 90)
+    user_height = st.number_input("Testmagasság (cm)", 100, 250, 186)
     age = st.number_input("Életkor", 1, 100, 43)
-    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 43)
+    rest_hr = st.number_input("Nyugalmi pulzus", 30, 100, 49)
 
 uploaded_file = st.file_uploader("GPX fájl feltöltése", type=['gpx'])
 
 if uploaded_file:
-    if st.button("🚀 Teljes Elemzés Generálása"):
+    if st.button("🚀 Szimuláció indítása"):
         try:
             with st.spinner('Adatok feldolgozása...'):
                 raw_data = uploaded_file.read().decode("utf-8")
@@ -155,3 +155,4 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
