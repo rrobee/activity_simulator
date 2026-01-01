@@ -154,7 +154,7 @@ if uploaded_file:
                 st.subheader("👟 Cadence profil")
                 st.line_chart(pd.DataFrame({"Cadence": cad_list}), color="#4B9BFF")
 
-            act_map = {"Túrázás": "turazas", "Futás": "futas", "Kerékpár": "kerekpar"}
+            act_map = {"Túrázás": "cycling", "Futás": "running", "Kerékpár": "hiking"}
             act_slug = act_map.get(activity_type, "activity")
             timestamp_str = start_dt.strftime("%Y%m%d_%H%M%S")
             file_name_final = f"garmin_{act_slug}_{timestamp_str}.gpx"
@@ -173,6 +173,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
