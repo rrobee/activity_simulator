@@ -38,10 +38,15 @@ with st.sidebar:
     level = st.selectbox("Szint (Erőnlét)", ["Kezdő", "Középhaladó", "Haladó"], index=1)
     path_type = st.radio("Pálya típusa", ["Szakasz", "Körpálya"])
     
-    st.divider()
+st.divider()
     st.header("🕒 Idő és Tempó")
     start_date = st.date_input("Indulási nap", value=datetime.now().date(), key="date_picker")
-    start_time = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker", step=1)
+    # Itt a módosítás: két oszlopra bontjuk az órát/percet és a másodpercet
+    col_h, col_s = st.columns([2, 1])
+    with col_h:
+        start_time_base = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker")
+    with col_s:
+        start_sec = st.number_input("Mp", 0, 59, 0, key="sec_picker")
     speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
@@ -73,7 +78,7 @@ if uploaded_file:
                 real_eles = get_real_elevations(locs)
                 if not real_eles: real_eles = [220.0] * len(lats_f)
 
-            start_dt = datetime.combine(start_date, start_time)
+            start_dt = datetime.combine(start_date, start_time_base) + timedelta(seconds=start_sec)
             base_s = {"Túrázás": 1.3, "Futás": 3.0, "Kerékpár": 7.0}[activity_type]
             target_speed = base_s * ({"Kezdő": 0.8, "Középhaladó": 1.0, "Haladó": 1.3}[level]) * speed_boost
 
@@ -149,10 +154,12 @@ if uploaded_file:
                 st.subheader("👟 Cadence profil")
                 st.line_chart(pd.DataFrame({"Cadence": cad_list}), color="#4B9BFF")
 
-            # Időbélyeg másodperccel (évhónapnap_órapercmásodperc)
+            act_map = {"Túrázás": "turazas", "Futás": "futas", "Kerékpár": "kerekpar"}
+            act_slug = act_map.get(activity_type, "activity")
             timestamp_str = start_dt.strftime("%Y%m%d_%H%M%S")
             file_name_final = f"garmin_{act_slug}_{timestamp_str}.gpx"
 
+            # 3. Fájl előkészítése és a letöltő gomb
             buffer = io.BytesIO()
             ET.ElementTree(root).write(buffer, encoding='utf-8', xml_declaration=True)
             
@@ -166,6 +173,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
