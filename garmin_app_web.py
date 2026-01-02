@@ -53,6 +53,10 @@ with st.sidebar:
         )
     with col_s:
         start_sec = st.number_input("Mp", 0, 59, 0, key="sec_picker")
+
+    st.header("📊 Finomhangolás")
+    hr_mult = st.slider("Pulzus intenzitás", 0.7, 1.5, 1.0, help="1.0 az alap. A felette lévő érték felerősíti a pulzusválaszt.")
+    cad_mult = st.slider("Cadence szorzó", 0.8, 1.2, 1.0)
     speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
@@ -179,6 +183,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
