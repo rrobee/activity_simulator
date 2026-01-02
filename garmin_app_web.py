@@ -44,7 +44,13 @@ with st.sidebar:
     # Itt a módosítás: két oszlopra bontjuk az órát/percet és a másodpercet
     col_h, col_s = st.columns([2, 1])
     with col_h:
-        start_time_base = st.time_input("Indulási idő", value=datetime.now().time(), key="time_picker")
+        # A step=60 beállítással percenkénti választást teszel lehetővé
+        start_time_base = st.time_input(
+            "Indulási idő", 
+            value=datetime.now().time(), 
+            key="time_picker",
+            step=60
+        )
     with col_s:
         start_sec = st.number_input("Mp", 0, 59, 0, key="sec_picker")
     speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
@@ -173,6 +179,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
