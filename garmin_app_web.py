@@ -55,8 +55,8 @@ with st.sidebar:
         start_sec = st.number_input("Mp", 0, 59, 0, key="sec_picker")
 
     st.header("📊 Finomhangolás")
-    hr_mult = st.slider("Pulzus intenzitás", 0.7, 1.5, 1.0, help="1.0 az alap. A felette lévő érték felerősíti a pulzusválaszt.")
-    cad_mult = st.slider("Cadence szorzó", 0.8, 1.2, 1.0)
+    hr_mult = st.slider("Pulzus intenzitás", 0.5, 1.5, 1.0)
+    cad_mult = st.slider("Cadence szorzó", 0.5, 1.5, 1.0)
     speed_boost = st.slider("Tempó gyorsítása", 0.5, 1.5, 1.0)
     
     st.divider()
@@ -118,26 +118,38 @@ if uploaded_file:
                 ET.SubElement(pt, f"{{{gpx_ns}}}ele").text = f"{ele:.1f}"
                 ET.SubElement(pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
-                # --- JAVÍTOTT PULZUS (Kevesebb plató) ---
+########## SZÁMÍTÁSI LOGIKA START ##########
+                # --- ÉLETSZERŰ PULZUS (Dinamikus intenzitással) ---
                 hr_offset = 70 if activity_type == "Kerékpár" else 60
-                hr = int(rest_hr + hr_offset + (ele - real_eles[0]) * 0.35 + random.randint(-4, 5))
-                max_hr = 220 - age
-                final_hr = max(rest_hr+15, min(hr, max_hr))
+                
+                # Az alap számítás szorzódik a csúszka értékével (hr_mult)
+                hr_base = (rest_hr + hr_offset + (ele - real_eles[0]) * 0.35) * hr_mult
+                
+                # A kilengés (zaj) is skálázódik
+                random_swing = random.randint(-4, 5) * hr_mult
+                
+                # Korlátok közé szorítás (min: nyugalmi+15, max: 220-életkor)
+                final_hr = int(max(rest_hr + 15, min(hr_base + random_swing, 220 - age)))
                 hr_list.append(final_hr)
                 
-                # --- JAVÍTOTT CADENCE (Realisztikusabb túra lépésszám) ---
+                # --- ÉLETSZERŰ CADENCE (Dinamikus szorzóval) ---
                 if activity_type == "Kerékpár":
-                    cad = int(70 + (target_speed * 1.5) + random.randint(-5, 5))
+                    cad_base = (70 + (target_speed * 1.5)) * cad_mult
                 elif activity_type == "Túrázás":
-                    cad = int(90 + (target_speed * 8) - (user_height * 0.05) + random.randint(-4, 4))
+                    cad_base = (90 + (target_speed * 8) - (user_height * 0.05)) * cad_mult
                 else: # Futás
-                    cad = int(150 + (target_speed * 5) + random.randint(-3, 3))
+                    cad_base = (150 + (target_speed * 5)) * cad_mult
+                
+                # Véletlenszerű lépés-ingadozás hozzáadása
+                cad = int(max(0, cad_base + random.randint(-3, 3)))
                 cad_list.append(cad)
                 
+                # --- GPX fájlba írás ---
                 ext = ET.SubElement(pt, f"{{{gpx_ns}}}extensions")
                 tpe = ET.SubElement(ext, f"{{{tpe_ns}}}TrackPointExtension")
                 ET.SubElement(tpe, f"{{{tpe_ns}}}hr").text = str(final_hr)
                 ET.SubElement(tpe, f"{{{tpe_ns}}}cad").text = str(cad)
+########## SZÁMÍTÁSI LOGIKA END ##########
 
             if path_type == "Körpálya":
                 d_back = haversine(float(lats_f[-1]), float(lons_f[-1]), float(lats_f[0]), float(lons_f[0]))
@@ -183,6 +195,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
