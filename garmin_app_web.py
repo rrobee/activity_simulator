@@ -119,17 +119,22 @@ if uploaded_file:
                 ET.SubElement(pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
 ########## SZÁMÍTÁSI LOGIKA START ##########
-                # --- ÉLETSZERŰ PULZUS (Dinamikus intenzitással) ---
+                # --- FINOMÍTOTT PULZUS (Nincs "plafon" effektus) ---
                 hr_offset = 70 if activity_type == "Kerékpár" else 60
-                
-                # Az alap számítás szorzódik a csúszka értékével (hr_mult)
+                max_hr_allowed = 220 - age
+
+                # Alapérték kiszámítása
                 hr_base = (rest_hr + hr_offset + (ele - real_eles[0]) * 0.35) * hr_mult
-                
-                # A kilengés (zaj) is skálázódik
-                random_swing = random.randint(-4, 5) * hr_mult
-                
-                # Korlátok közé szorítás (min: nyugalmi+15, max: 220-életkor)
-                final_hr = int(max(rest_hr + 15, min(hr_base + random_swing, 220 - age)))
+
+                # Ha közelítünk a maximumhoz, csökkentjük az ingadozást, de nem tüntetjük el
+                hr_with_swing = hr_base + random.randint(-3, 4)
+
+                # "Soft limit" logika: ha átlépné a maxot, kicsit visszahúzzuk, de hagyunk benne micro-mozgást
+                if hr_with_swing >= max_hr_allowed:
+                    final_hr = max_hr_allowed - random.randint(0, 3)
+                else:
+                    final_hr = int(max(rest_hr + 15, hr_with_swing))
+
                 hr_list.append(final_hr)
                 
                 # --- ÉLETSZERŰ CADENCE (Dinamikus szorzóval) ---
@@ -195,6 +200,7 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Hiba: {e}")
+
 
 
 
