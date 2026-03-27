@@ -37,6 +37,7 @@ with st.sidebar:
     activity_type = st.selectbox("Tevékenység", ["Túrázás", "Futás", "Kerékpár"])
     level = st.selectbox("Szint (Erőnlét)", ["Kezdő", "Középhaladó", "Haladó"], index=1)
     path_type = st.radio("Pálya típusa", ["Szakasz", "Körpálya"])
+    lap_count = st.number_input("Körök száma", min_value=1, max_value=20, value=1)
     
     st.divider()
     st.header("🕒 Idő és Tempó")
@@ -87,6 +88,12 @@ if uploaded_file:
                 locs = [{"latitude": float(lats_f[i]), "longitude": float(lons_f[i])} for i in range(len(lats_f))]
                 real_eles = get_real_elevations(locs)
                 if not real_eles: real_eles = [220.0] * len(lats_f)
+                    
+                if lap_count > 1:
+                    # Megismételjük a koordinátákat és a magasságokat
+                    lats_f = lats_f * lap_count
+                    lons_f = lons_f * lap_count
+                    real_eles = real_eles * lap_count
 
             start_dt = datetime.combine(start_date, start_time_base) + timedelta(seconds=start_sec)
             base_s = {"Túrázás": 1.3, "Futás": 3.0, "Kerékpár": 7.0}[activity_type]
@@ -118,7 +125,7 @@ if uploaded_file:
                 ET.SubElement(pt, f"{{{gpx_ns}}}ele").text = f"{ele:.1f}"
                 ET.SubElement(pt, f"{{{gpx_ns}}}time").text = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 
-########## SZÁMÍTÁSI LOGIKA START ##########
+ ########## SZÁMÍTÁSI LOGIKA START ##########
                 # --- FINOMÍTOTT PULZUS (Nincs "plafon" effektus) ---
                 hr_offset = 70 if activity_type == "Kerékpár" else 60
                 max_hr_allowed = 220 - age
